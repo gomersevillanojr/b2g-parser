@@ -3,23 +3,21 @@ import google.generativeai as genai
 import gspread
 from google.oauth2.service_account import Credentials
 import json
+import re # We added this tool to help find the JSON
 
 st.set_page_config(page_title="B2G EOY Parser Dashboard", layout="wide")
 st.title("🦁 Boys 2 Gentlemen LLC — Data Pipeline")
 st.write("Upload scanned survey images or PDF packets to automatically populate the LAUSD EOY Database sheets.")
 
-# Safe administrative cloud engine connection keys
 API_KEY = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('gemini-2.5-flash')
 
-# Bind to Cloud Google Sheets API Workspace
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 google_creds = json.loads(st.secrets["GOOGLE_CREDENTIALS"])
 creds = Credentials.from_service_account_info(google_creds, scopes=scope)
 client = gspread.authorize(creds)
 
-# Connect to the targeted workbook sheets
 try:
     workbook = client.open("Boys 2 Gentlemen EOY Data")
     sheet_quant = workbook.worksheet("Quantitative Surveys")
@@ -27,7 +25,6 @@ try:
 except Exception as e:
     st.error(f"Workbook structure link failure: {e}. Check tab names inside Google Sheets.")
 
-# Ingestion Uploader Console
 uploaded_files = st.file_uploader("Drop B2G Packets Here (PDF or Loose Photo Arrays)", type=["jpg", "jpeg", "png", "pdf"], accept_multiple_files=True)
 
 if uploaded_files and st.button("🚀 Execute Comprehensive Analysis"):
@@ -37,13 +34,12 @@ if uploaded_files and st.button("🚀 Execute Comprehensive Analysis"):
         st.write(f"Analyzing structure profile: **{file.name}**...")
         raw_bytes = file.read()
         
-        # Super-prompt instructing AI to route data to respective sheets based on structural design rules
         prompt = """
         Analyze this Boys 2 Gentlemen LLC End-of-Year reporting packet completely. 
-        First, determine if this document is the '9-Page Quantitative Data Collection Survey' or the '11-Page Qualitative Guide'.
+        Determine if this document is the '9-Page Quantitative Data Collection Survey' or the '11-Page Qualitative Guide'.
         
-        Extract information precisely into a single flat JSON block using the keys below. If a specific checkbox or response field is blank, evaluate it strictly as null.
-         Do not include any formatting fences like ```json.
+        Extract information precisely into a single flat JSON block.
+        Return ONLY valid JSON. No conversational text.
         
         Expected JSON Format structure:
         {
@@ -52,8 +48,6 @@ if uploaded_files and st.button("🚀 Execute Comprehensive Analysis"):
           "school_site": "string value or null",
           "position_assignment": "string value or null",
           "reporting_period": "string value or null",
-          
-          # If QUANTITATIVE, extract these matching parameters:
           "q1_morning_arrival": "string value representing checked range choice, or null",
           "q2_afternoon_dismissal": "string value representing checked range choice, or null",
           "q3_bullying_incidents": integer count or null,
@@ -63,8 +57,6 @@ if uploaded_files and st.button("🚀 Execute Comprehensive Analysis"):
           "q7_safe_passage_example": "full text summary string or null",
           "q8_tardy_redirected": integer count or null,
           "q9_attendance_followups": integer count or null,
-          
-          # If QUALITATIVE, map corresponding narrative answers:
           "qual_component": "Safe Passage", "Peace Building", or "Community Development",
           "qual_topic": "string summary of section subheader topic",
           "qual_response": "full comprehensive transcribed reflection answer text block"
@@ -77,9 +69,20 @@ if uploaded_files and st.button("🚀 Execute Comprehensive Analysis"):
                 prompt
             ])
             
-            extracted_json = json.loads(response.text.strip())
+            # --- THE FIX IS HERE ---
+            # We strip away everything that isn't inside the JSON brackets
+            text_response = response.text
+            json_match = re.search(r'\{.*\}', text_response, re.DOTALL)
             
-            # Smart Routeing Logic based on form structural context profile
+            if json_match:
+                clean_json_string = json_match.group(0)
+                extracted_json = json.loads(clean_json_string)
+            else:
+                 # If we still can't find JSON, we skip this photo and warn you, but keep the app running.
+                 st.warning(f"Could not read the data format for {file.name}. Moving to the next file.")
+                 continue 
+            # -----------------------
+
             if extracted_json.get("form_type") == "QUANTITATIVE":
                 sheet_quant.append_row([
                     file.name,
@@ -97,7 +100,7 @@ if uploaded_files and st.button("🚀 Execute Comprehensive Analysis"):
                     extracted_json.get("q8_tardy_redirected"),
                     extracted_json.get("q9_attendance_followups")
                 ])
-                st.success(f"✅ Ingested Quantitative Record Matrix for {file.name}")
+                st.success(f"✅ Ingested Quantitative Record for {file.name}")
                 
             else:
                 sheet_qual.append_row([
@@ -106,10 +109,11 @@ if uploaded_files and st.button("🚀 Execute Comprehensive Analysis"):
                     extracted_json.get("qual_topic"),
                     extracted_json.get("qual_response")
                 ])
-                st.success(f"📝 Logged Qualitative Text Reflection Entry for {file.name}")
+                st.success(f"📝 Logged Qualitative Entry for {file.name}")
                 
         except Exception as crash_error:
-            st.error(f"Error parsing entity stack {file.name}: {crash_error}")
+             # This prevents one bad photo from crashing the whole batch
+            st.error(f"Error processing {file.name}: {crash_error}")
             
         progress_bar.progress((idx + 1) / len(uploaded_files))
         
