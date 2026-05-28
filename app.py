@@ -38,18 +38,19 @@ if uploaded_files and st.button("🚀 Process Submission as ONE Record"):
         for file in uploaded_files:
             ai_payload.append({'mime_type': file.type, 'data': file.read()})
             
-        # 2. THE NEW COMPREHENSIVE PROMPT
+        # 2. THE COMPREHENSIVE PROMPT FOR BOTH DOCUMENTS
         prompt = """
         You are analyzing a complete submission packet consisting of multiple pages for ONE employee.
         Look at all the provided pages together as a single document.
         
         Task 1: Identify which document this is. It will be either:
-        - "DATA" (The End of Year Data form with checkboxes and 46 specific numerical/short answers)
-        - "QUESTIONS" (The End of Year Questions form featuring large essay/paragraph sections)
+        - "DATA" (The 9-page End of Year Data form with checkboxes and 46 specific numerical/short answers)
+        - "QUESTIONS" (The 11-page End of Year Questions form featuring narrative questions across Safe Passage, Peace Building, and Community Development)
         
         Task 2: Extract the data from across ALL pages into a single flat JSON object.
         If a question is blank, skipped, or missing from the photos, return null. 
         For checkbox questions that ask to "check all that apply", return a single string of the checked items separated by commas.
+        Transcribe all handwritten responses exactly as written.
         
         Expected JSON Format:
         {
@@ -59,59 +60,22 @@ if uploaded_files and st.button("🚀 Process Submission as ONE Record"):
           "position_assignment": "string or null",
           "reporting_period": "string or null",
           
-          "data_q1": "string or null",
-          "data_q2": "string or null",
-          "data_q3": integer or null,
-          "data_q4": integer or null,
-          "data_q5": integer or null,
-          "data_q6": "string or null",
-          "data_q7": "string or null",
-          "data_q8": integer or null,
-          "data_q9": integer or null,
-          "data_q10": integer or null,
-          "data_q11": integer or null,
-          "data_q12": "string or null",
-          "data_q13": "string or null",
-          "data_q14": integer or null,
-          "data_q15": "string or null",
-          "data_q16": integer or null,
-          "data_q17": "string or null",
-          "data_q18": integer or null,
-          "data_q19": integer or null,
-          "data_q20": "string or null",
-          "data_q21": "string or null",
-          "data_q22": integer or null,
-          "data_q23": integer or null,
-          "data_q24": "string or null",
-          "data_q25": "string or null",
-          "data_q26": integer or null,
-          "data_q27": "string or null",
-          "data_q28": "string or null",
-          "data_q29": integer or null,
-          "data_q30": integer or null,
-          "data_q31": integer or null,
-          "data_q32": integer or null,
-          "data_q33": "string or null",
-          "data_q34": "string or null",
-          "data_q35": integer or null,
-          "data_q36": integer or null,
-          "data_q37": integer or null,
-          "data_q38": integer or null,
-          "data_q39": "string or null",
-          "data_q40": integer or null,
-          "data_q41": "string or null",
-          "data_q42": "string or null",
-          "data_q43": "string or null",
-          "data_q44": "string or null",
-          "data_q45": "string or null",
+          # IF DOCUMENT TYPE IS "DATA", FILL THESE 46 FIELDS (Otherwise null):
+          "data_q1": "string or null", "data_q2": "string or null", "data_q3": integer or null, "data_q4": integer or null, "data_q5": integer or null,
+          "data_q6": "string or null", "data_q7": "string or null", "data_q8": integer or null, "data_q9": integer or null, "data_q10": integer or null,
+          "data_q11": integer or null, "data_q12": "string or null", "data_q13": "string or null", "data_q14": integer or null, "data_q15": "string or null",
+          "data_q16": integer or null, "data_q17": "string or null", "data_q18": integer or null, "data_q19": integer or null, "data_q20": "string or null",
+          "data_q21": "string or null", "data_q22": integer or null, "data_q23": integer or null, "data_q24": "string or null", "data_q25": "string or null",
+          "data_q26": integer or null, "data_q27": "string or null", "data_q28": "string or null", "data_q29": integer or null, "data_q30": integer or null,
+          "data_q31": integer or null, "data_q32": integer or null, "data_q33": "string or null", "data_q34": "string or null", "data_q35": integer or null,
+          "data_q36": integer or null, "data_q37": integer or null, "data_q38": integer or null, "data_q39": "string or null", "data_q40": integer or null,
+          "data_q41": "string or null", "data_q42": "string or null", "data_q43": "string or null", "data_q44": "string or null", "data_q45": "string or null",
           "data_q46": "string or null",
           
-          "essay_1": "full text answer or null",
-          "essay_2": "full text answer or null",
-          "essay_3": "full text answer or null",
-          "essay_4": "full text answer or null",
-          "essay_5": "full text answer or null",
-          "essay_6": "full text answer or null"
+          # IF DOCUMENT TYPE IS "QUESTIONS", FILL THESE 54 FIELDS (Otherwise null):
+          "sp_1a": "string or null", "sp_1b": "string or null", "sp_1c": "string or null", "sp_2a": "string or null", "sp_2b": "string or null", "sp_2c": "string or null", "sp_3a": "string or null", "sp_3b": "string or null", "sp_4a": "string or null", "sp_4b": "string or null", "sp_4c": "string or null", "sp_4d": "string or null", "sp_4e": "string or null", "sp_4f": "string or null", "sp_5a": "string or null", "sp_5b": "string or null", "sp_6": "string or null",
+          "pb_1a": "string or null", "pb_1b": "string or null", "pb_1c": "string or null", "pb_1d": "string or null", "pb_2a": "string or null", "pb_2b": "string or null", "pb_3a": "string or null", "pb_3b": "string or null", "pb_4a": "string or null", "pb_4b": "string or null", "pb_4c": "string or null", "pb_4d": "string or null", "pb_4e": "string or null", "pb_5a": "string or null", "pb_5b": "string or null", "pb_5c": "string or null", "pb_5d": "string or null", "pb_5e": "string or null", "pb_6": "string or null", "pb_7a": "string or null", "pb_7b": "string or null", "pb_8a": "string or null", "pb_8b": "string or null",
+          "comm_1": "string or null", "comm_2a": "string or null", "comm_2b": "string or null", "comm_3a": "string or null", "comm_3b": "string or null", "comm_4a": "string or null", "comm_4b": "string or null", "comm_5a": "string or null", "comm_5b": "string or null", "comm_5c": "string or null", "comm_5d": "string or null", "comm_5e": "string or null", "comm_6": "string or null"
         }
         """
         
@@ -143,15 +107,17 @@ if uploaded_files and st.button("🚀 Process Submission as ONE Record"):
                         data.get("data_q41"), data.get("data_q42"), data.get("data_q43"), data.get("data_q44"), data.get("data_q45"), 
                         data.get("data_q46")
                     ])
-                    st.success(f"✅ Successfully wrote ONE complete row of 50 data points to the 'DATA' sheet for {data.get('employee_name')}.")
+                    st.success("✅ Successfully wrote ONE complete row of 50 data points to the 'DATA' sheet.")
                     
                 else:
+                    filename = uploaded_files[0].name if uploaded_files else "Unknown"
                     sheet_questions.append_row([
-                        data.get("employee_name"), data.get("school_site"),
-                        data.get("essay_1"), data.get("essay_2"), data.get("essay_3"), 
-                        data.get("essay_4"), data.get("essay_5"), data.get("essay_6")
+                        filename,
+                        data.get("sp_1a"), data.get("sp_1b"), data.get("sp_1c"), data.get("sp_2a"), data.get("sp_2b"), data.get("sp_2c"), data.get("sp_3a"), data.get("sp_3b"), data.get("sp_4a"), data.get("sp_4b"), data.get("sp_4c"), data.get("sp_4d"), data.get("sp_4e"), data.get("sp_4f"), data.get("sp_5a"), data.get("sp_5b"), data.get("sp_6"),
+                        data.get("pb_1a"), data.get("pb_1b"), data.get("pb_1c"), data.get("pb_1d"), data.get("pb_2a"), data.get("pb_2b"), data.get("pb_3a"), data.get("pb_3b"), data.get("pb_4a"), data.get("pb_4b"), data.get("pb_4c"), data.get("pb_4d"), data.get("pb_4e"), data.get("pb_5a"), data.get("pb_5b"), data.get("pb_5c"), data.get("pb_5d"), data.get("pb_5e"), data.get("pb_6"), data.get("pb_7a"), data.get("pb_7b"), data.get("pb_8a"), data.get("pb_8b"),
+                        data.get("comm_1"), data.get("comm_2a"), data.get("comm_2b"), data.get("comm_3a"), data.get("comm_3b"), data.get("comm_4a"), data.get("comm_4b"), data.get("comm_5a"), data.get("comm_5b"), data.get("comm_5c"), data.get("comm_5d"), data.get("comm_5e"), data.get("comm_6")
                     ])
-                    st.success(f"📝 Successfully wrote ONE row to the 'QUESTIONS' sheet for {data.get('employee_name')}.")
+                    st.success("📝 Successfully wrote ONE complete row of 54 data points to the 'QUESTIONS' sheet.")
             else:
                  st.error("Failed to extract readable JSON from the AI response. Please ensure photos are legible.")
                  
